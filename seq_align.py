@@ -51,12 +51,30 @@ def main():
             arr[i,j] = max(vals)
             path[i,j] = np.argmax(vals)
 
-    max_score = arr[i,j]
-
-    trace1, trace2 = "",""
     print(arr)
     print(path)
+    max_score = arr[i,j]
 
+    # traceback path to reconstruct the alignment
+    trace1, trace2, i, j = "", "", n, m
+    while i+j > 0:
+        if path[i,j] == 0:
+            trace1 += seq1[i-1]
+            trace2 += '-'
+            i -= 1
+        elif path[i,j] == 1:
+            trace1 += '-'
+            trace2 += seq2[j-1]
+            j -= 1
+        else:
+            trace1 += seq1[i-1]
+            trace2 += seq2[j-1]
+            i -= 1
+            j -= 1
+    trace1 = trace1[::-1]
+    trace2 = trace2[::-1]
+    print(trace1)
+    print(trace2)
 
     if command_args.align_type == 'global':
         raise NotImplementedError
