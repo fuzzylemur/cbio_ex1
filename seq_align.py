@@ -22,8 +22,8 @@ def main():
 
     h1, seq1 = next(fastaread(command_args.seq_a))
     h2, seq2 = next(fastaread(command_args.seq_b))
-    seq1 = "GGCC"
-    seq2 = "GGTTCC"
+    #seq1 = "GGCC"
+    #seq2 = "GGTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCC"
     n = len(seq1)
     m = len(seq2)
     score = np.genfromtxt(command_args.score, delimiter='\t')[1:,1:]
@@ -47,13 +47,11 @@ def main():
             val2 = arr[i,j-1] + score[4, d[seq2[j-1]]]
             val3 = arr[i-1,j-1] + score[d[seq1[i-1]], d[seq2[j-1]]]
             vals = [val1, val2, val3]
-            #print(i, j, vals)
             arr[i,j] = max(vals)
             path[i,j] = np.argmax(vals)
 
-    print(arr)
-    print(path)
-    max_score = arr[i,j]
+    #print(arr)
+    #print(path)
 
     # traceback path to reconstruct the alignment
     trace1, trace2, i, j = "", "", n, m
@@ -71,10 +69,18 @@ def main():
             trace2 += seq2[j-1]
             i -= 1
             j -= 1
+    # reverse the aligned sequences
     trace1 = trace1[::-1]
     trace2 = trace2[::-1]
-    print(trace1)
-    print(trace2)
+
+    # print the aligned sequences (50 chars width) and score
+    i,j = 0,0
+    while i < len(trace1)-1:
+        j = min(i+50, len(trace1))
+        print(trace1[i:j])
+        print(trace2[i:j],'\n')
+        i = j
+    print("%s:%d" % (command_args.align_type, arr[n,m]))
 
     if command_args.align_type == 'global':
         raise NotImplementedError
