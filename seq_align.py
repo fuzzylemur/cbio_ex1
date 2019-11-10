@@ -3,31 +3,11 @@ import numpy as np
 
 from itertools import groupby
 
-def fastaread(fasta_name):
-    f = open(fasta_name)
-    faiter = (x[1] for x in groupby(f, lambda line: line.startswith(">")))
-    for header in faiter:
-        header = next(header)[1:].strip()
-        seq = "".join(s.strip() for s in next(faiter))
-        yield header, seq
 
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('seq_a', help='Path to first FASTA file (e.g. fastas/HomoSapiens-SHH.fasta)')
-    parser.add_argument('seq_b', help='Path to second FASTA file')
-    parser.add_argument('--align_type', help='Alignment type (e.g. local)', required=True)
-    parser.add_argument('--score', help='Score matrix in.tsv format (default is score_matrix.tsv) ', default='score_matrix.tsv')
-    command_args = parser.parse_args()
-
-    h1, seq1 = next(fastaread(command_args.seq_a))
-    h2, seq2 = next(fastaread(command_args.seq_b))
-    #seq1 = "GGCC"
-    #seq2 = "GGTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTCC"
+def global_alignment(seq1, seq2, score):
     n = len(seq1)
     m = len(seq2)
-    score = np.genfromtxt(command_args.score, delimiter='\t')[1:,1:]
-
+    
     d = {"A":0, "C":1, "G":2, "T":3}
 
     arr = np.zeros((n+1,m+1))
@@ -80,15 +60,49 @@ def main():
         print(trace1[i:j])
         print(trace2[i:j],'\n')
         i = j
-    print("%s:%d" % (command_args.align_type, arr[n,m]))
+    print("global:%d" % arr[n,m])
 
+
+def local_alignment(seq1, seq2, score):
+    n = len(seq1)
+    m = len(seq2)
+
+
+def overlap_alignment(seq1, seq2, score):
+    n = len(seq1)
+    m = len(seq2)
+
+
+def fastaread(fasta_name):
+    f = open(fasta_name)
+    faiter = (x[1] for x in groupby(f, lambda line: line.startswith(">")))
+    for header in faiter:
+        header = next(header)[1:].strip()
+        seq = "".join(s.strip() for s in next(faiter))
+        yield header, seq
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('seq_a', help='Path to first FASTA file (e.g. fastas/HomoSapiens-SHH.fasta)')
+    parser.add_argument('seq_b', help='Path to second FASTA file')
+    parser.add_argument('--align_type', help='Alignment type (e.g. local)', required=True)
+    parser.add_argument('--score', help='Score matrix in.tsv format (default is score_matrix.tsv) ', default='score_matrix.tsv')
+    command_args = parser.parse_args()
+
+    _, seq1 = next(fastaread(command_args.seq_a))
+    _, seq2 = next(fastaread(command_args.seq_b))
+    score = np.genfromtxt(command_args.score, delimiter='\t')[1:,1:]
+    
     if command_args.align_type == 'global':
-        raise NotImplementedError
+        alignment_fn = global_alignment
     elif command_args.align_type == 'local':
-        raise NotImplementedError
+        alignment_fn = local_alignment
     elif command_args.align_type == 'overlap':
-        raise NotImplementedError
-    # print the best alignment and score
+        alignment_fn = overlap_alignment
+    else:
+        raise ValueError('no such alignment')
+    alignment_fn(seq1, seq2, score)
 
 
 if __name__ == '__main__':
