@@ -3,32 +3,45 @@ import numpy as np
 
 from itertools import groupby
 
+BASE_TO_INDEX = {"A":0, "C":1, "G":2, "T":3}
+
+
+def init_alignment_metrix(seq1, seq2, score):
+    n = len(seq1)
+    m = len(seq2)
+    alignment_metrix = np.zeros((n+1,m+1))
+    # fill first row and column
+    alignment_metrix[0, 0] = 0
+    for j in range(1,m+1):
+        alignment_metrix[0,j] = alignment_metrix[0,j-1] + score[4, BASE_TO_INDEX[seq2[j-1]]]
+    for i in range(1,n+1):
+        alignment_metrix[i,0] = alignment_metrix[i-1,0] + score[4, BASE_TO_INDEX[seq1[i-1]]]
+    return alignment_metrix
+
+
+def fill_alignment_metrix(alignment_metrix, seq1, seq2, score, can_be_neg):
+    n = len(seq1)
+    m = len(seq2)
+    path = np.zeros((n+1,m+1))
+    # fill rest of array
+    for i in range(1,n+1):
+        for j in range(1,m+1):
+            val1 = alignment_metrix[i-1,j] + score[BASE_TO_INDEX[seq1[i-1]], 4]
+            val2 = alignment_metrix[i,j-1] + score[4, BASE_TO_INDEX[seq2[j-1]]]
+            val3 = alignment_metrix[i-1,j-1] + score[BASE_TO_INDEX[seq1[i-1]], BASE_TO_INDEX[seq2[j-1]]]
+            vals = [val1, val2, val3]
+            alignment_metrix[i,j] = max(vals)
+            path[i,j] = np.argmax(vals)
+    return alignment_metrix, path
+
 
 def global_alignment(seq1, seq2, score):
     n = len(seq1)
     m = len(seq2)
-    
-    d = {"A":0, "C":1, "G":2, "T":3}
 
-    arr = np.zeros((n+1,m+1))
-    path = np.zeros((n+1,m+1))
-
-    # fill first row and column
-    arr[0, 0] = 0
-    for j in range(1,m+1):
-        arr[0,j] = arr[0,j-1] + score[4, d[seq2[j-1]]]
-    for i in range(1,n+1):
-        arr[i,0] = arr[i-1,0] + score[4, d[seq1[i-1]]]
-
+    alignment_metrix = init_alignment_metrix(seq1, seq2, score)
     # fill rest of array
-    for i in range(1,n+1):
-        for j in range(1,m+1):
-            val1 = arr[i-1,j] + score[d[seq1[i-1]], 4]
-            val2 = arr[i,j-1] + score[4, d[seq2[j-1]]]
-            val3 = arr[i-1,j-1] + score[d[seq1[i-1]], d[seq2[j-1]]]
-            vals = [val1, val2, val3]
-            arr[i,j] = max(vals)
-            path[i,j] = np.argmax(vals)
+    alignment_metrix, path = fill_alignment_metrix(alignment_metrix, seq1, seq2, score, True)
 
     #print(arr)
     #print(path)
@@ -60,17 +73,79 @@ def global_alignment(seq1, seq2, score):
         print(trace1[i:j])
         print(trace2[i:j],'\n')
         i = j
-    print("global:%d" % arr[n,m])
+    print("global:%d" % alignment_metrix[n,m])
 
 
 def local_alignment(seq1, seq2, score):
     n = len(seq1)
     m = len(seq2)
 
+    alignment_metrix, path = fill_alignment_metrix(np.zeros((n+1,m+1)), seq1, seq2, score, False)
+
+    # traceback path to reconstruct the alignment
+    trace1, trace2, i, j = "", "", n, m
+    # while i+j > 0:
+    #     if path[i,j] == 0:
+    #         trace1 += seq1[i-1]
+    #         trace2 += '-'
+    #         i -= 1
+    #     elif path[i,j] == 1:
+    #         trace1 += '-'
+    #         trace2 += seq2[j-1]
+    #         j -= 1
+    #     else:
+    #         trace1 += seq1[i-1]
+    #         trace2 += seq2[j-1]
+    #         i -= 1
+    #         j -= 1
+    # # reverse the aligned sequences
+    # trace1 = trace1[::-1]
+    # trace2 = trace2[::-1]
+
+    # print the aligned sequences (50 chars width) and score
+    i,j = 0,0
+    while i < len(trace1)-1:
+        j = min(i+50, len(trace1))
+        print(trace1[i:j])
+        print(trace2[i:j],'\n')
+        i = j
+    print("local:%d" % alignment_metrix[n,m])
+
 
 def overlap_alignment(seq1, seq2, score):
     n = len(seq1)
     m = len(seq2)
+
+    alignment_metrix, path = fill_alignment_metrix(np.zeros((n+1,m+1)), seq1, seq2, score, True)
+    
+    # traceback path to reconstruct the alignment
+    trace1, trace2, i, j = "", "", n, m
+    # while i+j > 0:
+    #     if path[i,j] == 0:
+    #         trace1 += seq1[i-1]
+    #         trace2 += '-'
+    #         i -= 1
+    #     elif path[i,j] == 1:
+    #         trace1 += '-'
+    #         trace2 += seq2[j-1]
+    #         j -= 1
+    #     else:
+    #         trace1 += seq1[i-1]
+    #         trace2 += seq2[j-1]
+    #         i -= 1
+    #         j -= 1
+    # # reverse the aligned sequences
+    # trace1 = trace1[::-1]
+    # trace2 = trace2[::-1]
+
+    # print the aligned sequences (50 chars width) and score
+    i,j = 0,0
+    while i < len(trace1)-1:
+        j = min(i+50, len(trace1))
+        print(trace1[i:j])
+        print(trace2[i:j],'\n')
+        i = j
+    print("overlap:%d" % alignment_metrix[n,m])
 
 
 def fastaread(fasta_name):
