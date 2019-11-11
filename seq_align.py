@@ -1,6 +1,8 @@
 import argparse
 import numpy as np
 
+import time
+
 from itertools import groupby
 
 BASE_TO_INDEX = {"A":0, "C":1, "G":2, "T":3}
@@ -147,4 +149,6 @@ def main():
 
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+    print('takes %d sec' % (time.time() - start))
