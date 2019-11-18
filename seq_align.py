@@ -1,11 +1,24 @@
 import argparse
 import numpy as np
 
-import time
-
 from itertools import groupby
 
 BASE_TO_INDEX = {"A":0, "C":1, "G":2, "T":3}
+INDEX_TO_BASE = {0:"A", 1:"C", 2:"G", 3:"T"}
+
+
+def base_to_index(seq):
+    index_seq = []
+    for base in seq:
+        index_seq.append(BASE_TO_INDEX[base])
+    return index_seq
+
+
+def index_to_base(seq):
+    base_seq = ""
+    for index in seq:
+        base_seq += INDEX_TO_BASE[index]
+    return base_seq
 
 
 def init_alignment_matrix(seq1, seq2, score):
@@ -15,9 +28,9 @@ def init_alignment_matrix(seq1, seq2, score):
     # fill first row and column
     alignment_matrix[0, 0] = 0
     for j in range(1,m+1):
-        alignment_matrix[0,j] = alignment_matrix[0,j-1] + score[4, BASE_TO_INDEX[seq2[j-1]]]
+        alignment_matrix[0,j] = alignment_matrix[0,j-1] + score[4, seq2[j-1]]
     for i in range(1,n+1):
-        alignment_matrix[i,0] = alignment_matrix[i-1,0] + score[4, BASE_TO_INDEX[seq1[i-1]]]
+        alignment_matrix[i,0] = alignment_matrix[i-1,0] + score[4, seq1[i-1]]
     return alignment_matrix
 
 
@@ -25,15 +38,15 @@ def fill_alignment_matrix(alignment_matrix, seq1, seq2, score, can_be_neg):
     n = len(seq1)
     m = len(seq2)
     path = np.zeros((n+1,m+1))
-    min_value = np.NINF if can_be_neg else 0
+    min_value = - np.PINF if can_be_neg else 0
+    vals = np.full((4, ), min_value)
     # fill rest of array
     for i in range(1,n+1):
         for j in range(1,m+1):
-            val1 = alignment_matrix[i-1,j] + score[BASE_TO_INDEX[seq1[i-1]], 4]
-            val2 = alignment_matrix[i,j-1] + score[4, BASE_TO_INDEX[seq2[j-1]]]
-            val3 = alignment_matrix[i-1,j-1] + score[BASE_TO_INDEX[seq1[i-1]], BASE_TO_INDEX[seq2[j-1]]]
-            vals = [val1, val2, val3, min_value]
-            alignment_matrix[i,j] = max(vals)
+            vals[0] = alignment_matrix[i-1,j] + score[seq1[i-1], 4]
+            vals[1] = alignment_matrix[i,j-1] + score[4, seq2[j-1]]
+            vals[2] = alignment_matrix[i-1,j-1] + score[seq1[i-1], seq2[j-1]]
+            alignment_matrix[i,j] = np.amax(vals)
             path[i,j] = np.argmax(vals)
     return alignment_matrix, path
 
@@ -43,22 +56,22 @@ def traceback(path, i, j, seq1, seq2, condition):
     trace1, trace2 = "", ""
     while condition(i, j):
         if path[i,j] == 0:
-            trace1 += seq1[i-1]
+            trace1 += INDEX_TO_BASE[seq1[i-1]]
             trace2 += '-'
             i -= 1
         elif path[i,j] == 1:
             trace1 += '-'
-            trace2 += seq2[j-1]
+            trace2 += INDEX_TO_BASE[seq2[j-1]]
             j -= 1
         elif path[i,j] == 2:
-            trace1 += seq1[i-1]
-            trace2 += seq2[j-1]
+            trace1 += INDEX_TO_BASE[seq1[i-1]]
+            trace2 += INDEX_TO_BASE[seq2[j-1]]
             i -= 1
             j -= 1
         else:
             break
     # reverse the aligned sequences
-    return trace1[::-1], trace2[::-1]
+    return trace1[::-1], trace2[::-1], i, j
 
 
 def print_result(trace1, trace2, alignment_type, max_score):
@@ -79,9 +92,9 @@ def global_alignment(seq1, seq2, score):
     alignment_matrix = init_alignment_matrix(seq1, seq2, score)
     
     alignment_matrix, path = fill_alignment_matrix(alignment_matrix, seq1, seq2, score, True)
-
-    trace1, trace2 = traceback(path, n, m, seq1, seq2, lambda x, y: x+y > 0)
-
+    
+    trace1, trace2, _, _ = traceback(path, n, m, seq1, seq2, lambda x, y: x+y > 0)
+    
     print_result(trace1, trace2, 'global', alignment_matrix[n,m])
 
 
@@ -90,11 +103,11 @@ def local_alignment(seq1, seq2, score):
     m = len(seq2)
 
     alignment_matrix, path = fill_alignment_matrix(np.zeros((n+1,m+1)), seq1, seq2, score, False)
-
+    
     i, j = np.unravel_index(np.argmax(alignment_matrix), alignment_matrix.shape)
-
-    trace1, trace2 = traceback(path, i, j, seq1, seq2, lambda x, y: x+y > 0)
-
+    
+    trace1, trace2, _, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x+y > 0)
+    
     print_result(trace1, trace2, 'local', alignment_matrix[i,j])
 
 
@@ -104,15 +117,13 @@ def overlap_alignment(seq1, seq2, score):
 
     alignment_matrix, path = fill_alignment_matrix(np.zeros((n+1,m+1)), seq1, seq2, score, True)
     
-    max_row = np.max(alignment_matrix[n,:])
-    max_col = np.max(alignment_matrix[:,m])
-    if max_row > max_col:
-        i, j = n, np.argmax(alignment_matrix[n,:])
-    else:
-        i, j = np.argmax(alignment_matrix[:,m]), m
-
-    trace1, trace2 = traceback(path, i, j, seq1, seq2, lambda x, y: x > 0 and y > 0)
-
+    i, j = n, np.argmax(alignment_matrix[n,:])
+    
+    trace1, trace2, i1, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x > 0 and y > 0)
+    
+    trace1 = index_to_base(seq1[:i1]) + trace1 + '-' * (m - j)
+    trace2 = '-' * i1 + trace2 + index_to_base(seq2[j:m])
+    
     print_result(trace1, trace2, 'overlap', alignment_matrix[i,j])
 
 
@@ -145,10 +156,8 @@ def main():
         alignment_fn = overlap_alignment
     else:
         raise ValueError('no such alignment')
-    alignment_fn(seq1, seq2, score)
+    alignment_fn(base_to_index(seq1), base_to_index(seq2), score)
 
 
 if __name__ == '__main__':
-    start = time.time()
     main()
-    print('takes %d sec' % (time.time() - start))
