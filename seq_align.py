@@ -1,14 +1,11 @@
 import argparse
 import numpy as np
 
-import time
-
 from itertools import groupby
 
 BASE_TO_INDEX = {"A":0, "C":1, "G":2, "T":3}
 INDEX_TO_BASE = {0:"A", 1:"C", 2:"G", 3:"T"}
 
-times_dict = {}
 
 def base_to_index(seq):
     index_seq = []
@@ -43,17 +40,6 @@ def fill_alignment_matrix(alignment_matrix, seq1, seq2, score, can_be_neg):
     path = np.zeros((n+1,m+1))
     min_value = - np.PINF if can_be_neg else 0
     vals = np.full((4, ), min_value)
-    # with np.nditer(alignment_matrix.copy()[1:,1:], flags=['multi_index', 'copy_if_overlap'], op_flags=['readonly']) as matrix_it:
-    #     while not matrix_it.finished:
-    #         i, j = matrix_it.multi_index
-    #         vals[0] = alignment_matrix[i,j+1] + score[seq1[i], 4]
-    #         vals[1] = alignment_matrix[i+1,j] + score[4, seq2[j]]
-    #         vals[2] = alignment_matrix[i,j] + score[seq1[i], seq2[j]]
-    #         alignment_matrix[i+1,j+1] = np.amax(vals)
-    #         path[i+1,j+1] = np.argmax(vals)
-    #         matrix_it.iternext()
-    # score_matrix_seq1 = np.transpose(np.full((m ,n), seq1))
-    # score_matrix_seq2 = np.full((n ,m), seq2)
     # fill rest of array
     for i in range(1,n+1):
         for j in range(1,m+1):
@@ -104,11 +90,11 @@ def global_alignment(seq1, seq2, score):
     m = len(seq2)
 
     alignment_matrix = init_alignment_matrix(seq1, seq2, score)
-    times_dict['1. init'] = time.time()
+    
     alignment_matrix, path = fill_alignment_matrix(alignment_matrix, seq1, seq2, score, True)
-    times_dict['2. fill'] = time.time()
+    
     trace1, trace2, _, _ = traceback(path, n, m, seq1, seq2, lambda x, y: x+y > 0)
-    times_dict['3. trace'] = time.time()
+    
     print_result(trace1, trace2, 'global', alignment_matrix[n,m])
 
 
@@ -117,11 +103,11 @@ def local_alignment(seq1, seq2, score):
     m = len(seq2)
 
     alignment_matrix, path = fill_alignment_matrix(np.zeros((n+1,m+1)), seq1, seq2, score, False)
-    times_dict['1. fill'] = time.time()
+    
     i, j = np.unravel_index(np.argmax(alignment_matrix), alignment_matrix.shape)
-    times_dict['2. find max'] = time.time()
+    
     trace1, trace2, _, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x+y > 0)
-    times_dict['3. trace'] = time.time()
+    
     print_result(trace1, trace2, 'local', alignment_matrix[i,j])
 
 
@@ -130,15 +116,14 @@ def overlap_alignment(seq1, seq2, score):
     m = len(seq2)
 
     alignment_matrix, path = fill_alignment_matrix(np.zeros((n+1,m+1)), seq1, seq2, score, True)
-    times_dict['1. fill'] = time.time()
+    
     i, j = n, np.argmax(alignment_matrix[n,:])
-    print(i, j, n, m)
-    times_dict['2. find max'] = time.time()
-    trace1, trace2, i1, j1 = traceback(path, i, j, seq1, seq2, lambda x, y: x > 0 and y > 0)
-    print(i1, j1, '\n')
+    
+    trace1, trace2, i1, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x > 0 and y > 0)
+    
     trace1 = index_to_base(seq1[:i1]) + trace1 + '-' * (m - j)
     trace2 = '-' * i1 + trace2 + index_to_base(seq2[j:m])
-    times_dict['3. trace'] = time.time()
+    
     print_result(trace1, trace2, 'overlap', alignment_matrix[i,j])
 
 
@@ -175,11 +160,4 @@ def main():
 
 
 if __name__ == '__main__':
-    times_dict['0. start'] = time.time()
     main()
-    times_dict['4. end'] = time.time()
-    for step in sorted(times_dict.keys()):
-        if step != '0. start':
-            print('{0} taeks {1} sec'.format(step, times_dict[step] - last_time))
-        last_time = times_dict[step]
-    print('overall takes %s sec' % str(times_dict['4. end'] - times_dict['0. start']))
