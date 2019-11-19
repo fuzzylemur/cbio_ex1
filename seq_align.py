@@ -106,7 +106,7 @@ def local_alignment(seq1, seq2, score):
     
     i, j = np.unravel_index(np.argmax(alignment_matrix), alignment_matrix.shape)
     
-    trace1, trace2, _, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x+y > 0)
+    trace1, trace2, _, _ = traceback(path, i, j, seq1, seq2, lambda x, y: x > 0 and y > 0)
     
     print_result(trace1, trace2, 'local', alignment_matrix[i,j])
 
